@@ -10,24 +10,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /
 # Install core dependencies
 RUN pip install --no-cache-dir requests
 
-# Install agent frameworks from source (production approach)
-# Clone to /tmp, install, then clean up to minimize image size
-# Install agent frameworks: use pip VCS for packaged repos; vendor non-packaged repos
-RUN pip install --no-cache-dir \
-    git+https://github.com/usestrix/strix@main \
-    git+https://github.com/chatrouter/chatrouter@main
+# Vendor all agent frameworks (none are pip-installable packages)
+# Clone each to /opt/vendor and install their requirements if present
+RUN mkdir -p /opt/vendor && cd /opt/vendor && \
+    git clone https://github.com/usestrix/strix && \
+    (test -f strix/requirements.txt && pip install --no-cache-dir -r strix/requirements.txt || true) && \
+    git clone https://github.com/chatrouter/chatrouter && \
+    (test -f chatrouter/requirements.txt && pip install --no-cache-dir -r chatrouter/requirements.txt || true) && \
+    git clone https://github.com/Factory-AI/factory && \
+    (test -f factory/requirements.txt && pip install --no-cache-dir -r factory/requirements.txt || true)
 
-# Try installing Factory-AI/factory as a package; if not, vendor it and install its requirements
-RUN set -eux; \
-    pip install --no-cache-dir git+https://github.com/Factory-AI/factory@main || true; \
-    mkdir -p /opt/vendor && cd /opt/vendor; \
-    if [ ! -d factory ]; then \
-      git clone https://github.com/Factory-AI/factory; \
-      if [ -f factory/requirements.txt ]; then pip install --no-cache-dir -r factory/requirements.txt; fi; \
-    fi
-
-# Ensure Python can import vendored factory if needed
-ENV PYTHONPATH=/opt/vendor/factory:${PYTHONPATH}
+# Ensure Python can import all vendored frameworks
+ENV PYTHONPATH=/opt/vendor/strix:/opt/vendor/chatrouter:/opt/vendor/factory
 
 # Create non-root user
 RUN useradd -m -u 10001 appuser && chown -R appuser:appuser /app
