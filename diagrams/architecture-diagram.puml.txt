@@ -1,0 +1,11 @@
+@startuml
+title ME-2.0 Architecture
+node "Laptop" { [n8n] [Twilio] }
+node "Rig" { [n8n] [STRIX] [Factory] [Ollama] [ChatRouter] }
+node "Cloud" { [n8n] [Mem0] }
+[n8n]@Laptop --> [n8n]@Cloud : Webhook
+[n8n]@Rig --> [n8n]@Cloud : Webhook
+[Twilio] --> [n8n]@Laptop
+[n8n]@Cloud --> [STRIX] : ChatRouter
+[Mem0] ..> all : Memory
+@enduml
