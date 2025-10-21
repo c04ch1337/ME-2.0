@@ -9,6 +9,16 @@
 
 ME-2.0 is a fully autonomous, agentic AI system designed to take over your personal and professional life—handling everything from pentesting jobs to scheduling appointments, all in 24/7 Hands-Off Takeover (HOT) mode. Built as a hybrid swarm of AI agents that communicate, learn, and evolve, it leverages open-source tools for orchestration, memory, security, coding, and voice interactions. Inspired by futuristic autonomy (think Jarvis meets Tesla FSD), it's tailored to your hardware: Ubuntu GPU rig for compute muscle, Windows laptop for corporate mobility, and AWS Lightsail for cloud persistence.
 
+## Quick Start (GPU + Compose)
+
+Follow the full guide: [docs/Manual Step-by-Step Installation.md](docs/Manual Step-by-Step Installation.md)
+
+Basic commands (Ubuntu GPU stack, first time):
+- cp [configs/.env.example.txt](configs/.env.example.txt) [configs/.env](configs/.env)
+- mkdir -p compose/n8n-data compose/ollama-models
+- docker build -f [docker/Dockerfile.base.py310.cu121](docker/Dockerfile.base.py310.cu121) -t me2-base:py310-cu121 .
+- docker compose -f [compose/docker-compose-ubuntu.yml](compose/docker-compose-ubuntu.yml) up --build
+
 ## What is ME-2.0?
 ME-2.0 is an open-source, hybrid AI framework that creates a digital clone of you—"ME 2.0"—using interconnected agents. Key features:
 - **Agent Swarm**: Agents for pentesting (STRIX), coding (Factory AI), communication (ChatRouter), memory (Mem0), email (DreamLit), and voice (Twilio + Bolna).

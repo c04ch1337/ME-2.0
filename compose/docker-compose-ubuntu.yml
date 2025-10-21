@@ -28,13 +28,11 @@ services:
       timeout: 5s
       retries: 5
       start_period: 20s
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
+    gpus: all
+    env_file:
+      - ../configs/.env
+    environment:
+      - CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-2,3}
   mem0:
     build:
       context: ../scripts
@@ -58,6 +56,8 @@ services:
       - "8000:8000"
     env_file:
       - ../configs/.env
+    environment:
+      - CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-2,3}
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import socket,sys; s=socket.socket(); s.settimeout(2); s.connect(('127.0.0.1',8000)); s.close()\""]

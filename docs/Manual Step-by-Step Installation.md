@@ -1,126 +1,124 @@
-Below are friendly, step-by-step instructions that anyone can follow to build all images “from scratch” and run each Docker Compose stack. You’ll do this once per computer. Follow the order carefully and don’t skip steps.
+# Manual Step-by-Step Installation (Beginner Friendly)
 
-Before you start
-- You need Docker installed:
-  - Windows or macOS: install Docker Desktop.
-  - Ubuntu (Linux): install Docker Engine.
-- If you will use the Ubuntu GPU stack:
-  - Your computer must have an NVIDIA GPU.
-  - Install the NVIDIA GPU driver and the NVIDIA Container Toolkit (lets Docker use the GPU).
-- Open the project folder in your terminal (Command Prompt/PowerShell/Terminal) so your working directory is the ME-2.0 folder (the one that contains the compose and docker folders).
+This guide shows you, step by step, how to build and run everything from scratch. It’s written so a 7th grader can follow along.
 
-1) Make the .env file (settings)
-- Find the example file: [configs/.env.example.txt](configs/.env.example.txt)
-- Copy it to a new file named: [configs/.env](configs/.env)
-- Open [configs/.env](configs/.env) and put in any keys or secrets you have. If you don’t have any yet, you can leave defaults for now.
+What you’ll build:
+- A special “base” image with CUDA 12.1 + Python 3.10 + PyTorch (GPU tools).
+- Service images for mem0, bolna, and agents.
+- Docker Compose stacks you can run on:
+  - Ubuntu with GPUs
+  - A laptop (no GPU)
+  - A small cloud server (no GPU)
 
-2) Create the two folders that Compose uses to store data
-- Make a folder named n8n-data next to your compose files (in the compose folder’s parent, which is the project root).
-- Make a folder named ollama-models next to your compose files (in the project root).
-Why? These folders are listed in the compose files for saving data:
-- n8n uses n8n-data
-- ollama uses ollama-models
+Helpful links to files in this project:
+- Base Dockerfile: [docker/Dockerfile.base.py310.cu121](docker/Dockerfile.base.py310.cu121)
+- Bolna Dockerfile: [docker/Dockerfile.bolna.dockerfile](docker/Dockerfile.bolna.dockerfile)
+- mem0 Dockerfile: [docker/Dockerfile.mem0.dockerfile](docker/Dockerfile.mem0.dockerfile)
+- Agents Dockerfile: [docker/Dockerfile.agents.dockerfile](docker/Dockerfile.agents.dockerfile)
+- Ubuntu (GPU) Compose: [compose/docker-compose-ubuntu.yml](compose/docker-compose-ubuntu.yml)
+- Laptop Compose: [compose/docker-compose-laptop.yml](compose/docker-compose-laptop.yml)
+- Lightsail Compose: [compose/docker-compose-lightsail.yml](compose/docker-compose-lightsail.yml)
+- Example env file: [configs/.env.example.txt](configs/.env.example.txt)
 
-3) Build the special base image (do this FIRST, one time)
-This gives you the CUDA 12.1 + Python 3.10 + PyTorch stack that the bolna image uses.
-- In your terminal, run:
-  - docker build -f docker/Dockerfile.base.py310.cu121 -t me2-base:py310-cu121 .
-- This uses [docker/Dockerfile.base.py310.cu121](docker/Dockerfile.base.py310.cu121) and creates a local image tag me2-base:py310-cu121.
+Before you start:
+- Install Docker (Docker Desktop for Windows/macOS; Docker Engine for Ubuntu).
+- If you will use GPUs on Ubuntu:
+  - Install the NVIDIA GPU driver.
+  - Install the NVIDIA Container Toolkit.
+  - Run this on your Ubuntu host (not inside Docker) to make sure the driver works:
+    - nvidia-smi
 
-4) Build each app image from scratch (optional but recommended the first time)
-You can let docker compose build them automatically later, but building now makes problems easier to see.
+Step 1 — Make your settings file (.env):
+- Copy the example file so you have your own settings:
+  - cp configs/.env.example.txt configs/.env
+- Open [configs/.env](configs/.env) in a text editor. Keep defaults if you don’t know what to change yet.
+- By default, we choose the two RTX 3060 GPUs (IDs 2 and 3). You can change CUDA_VISIBLE_DEVICES later.
 
-- Build mem0 image (uses [docker/Dockerfile.mem0.dockerfile](docker/Dockerfile.mem0.dockerfile)):
-  - docker build -f docker/Dockerfile.mem0.dockerfile -t compose-mem0 scripts
-  - Note: scripts at the end is the build context. Keep it exactly like that.
+Step 2 — Create data folders (for Compose volumes):
+Run these commands from the project folder:
+- mkdir -p compose/n8n-data
+- mkdir -p compose/ollama-models
 
-- Build bolna image (uses [docker/Dockerfile.bolna.dockerfile](docker/Dockerfile.bolna.dockerfile)):
-  - docker build -f docker/Dockerfile.bolna.dockerfile -t compose-bolna .
+Step 3 — Build the base image (GPU tools + Python):
+- docker build -f [docker/Dockerfile.base.py310.cu121](docker/Dockerfile.base.py310.cu121) -t me2-base:py310-cu121 .
 
-- Build agents image (uses [docker/Dockerfile.agents.dockerfile](docker/Dockerfile.agents.dockerfile)):
-  - docker build -f docker/Dockerfile.agents.dockerfile -t compose-agents .
-
-You don’t need to build n8n or ollama; those come from Docker Hub (pre-built).
-
-5) Choose which Docker Compose stack you want to run
-There are three different compose files. You can run whichever one matches your computer.
-
-- Ubuntu GPU stack (for a Linux machine with an NVIDIA GPU)
-  - File: [compose/docker-compose-ubuntu.yml](compose/docker-compose-ubuntu.yml)
-  - What it includes: n8n, ollama (GPU), mem0, bolna, agents
-
-- Laptop stack (for a local laptop with no GPU)
-  - File: [compose/docker-compose-laptop.yml](compose/docker-compose-laptop.yml)
-  - What it includes: n8n, mem0 (smaller setup)
-
-- Lightsail stack (for a simple cloud server on AWS Lightsail, no GPU)
-  - File: [compose/docker-compose-lightsail.yml](compose/docker-compose-lightsail.yml)
-  - What it includes: n8n, mem0
-
-6) Start the stack you picked (this will also build images if you skipped step 4)
-Run one of these commands from the project folder (where the compose folder is). Only run one stack at a time.
-
-- Ubuntu GPU stack:
-  - docker compose -f compose/docker-compose-ubuntu.yml up --build
-  - Tip (Linux GPU hosts): make sure the NVIDIA driver and nvidia-container-toolkit are installed before this. If you see GPU errors, fix those first.
-
-- Laptop stack:
-  - docker compose -f compose/docker-compose-laptop.yml up --build
-
-- Lightsail stack (run this on your cloud VM after copying the project there):
-  - docker compose -f compose/docker-compose-lightsail.yml up --build
-
-Let the logs run. Services may take a minute to initialize. Health checks are built in, so they will retry if needed.
-
-7) How to check if it’s working
-- n8n:
-  - Ubuntu stack: open http://localhost:5678
-  - Laptop stack: open http://127.0.0.1:5679
-  - Lightsail stack: open http://your-server-ip/ (port 80 maps to 5678)
+Step 4 — Build the service images (optional, but helpful first time):
 - mem0:
-  - Ubuntu stack: port 7777 (http://127.0.0.1:7777)
-  - Laptop stack: port 7778 (http://127.0.0.1:7778)
-  - Lightsail stack: port 7777 (http://your-server-ip:7777)
-- bolna (only in Ubuntu GPU stack): http://127.0.0.1:8000
-- agents (only in Ubuntu GPU stack): http://127.0.0.1:5000
+  - docker build -f [docker/Dockerfile.mem0.dockerfile](docker/Dockerfile.mem0.dockerfile) -t compose-mem0 scripts
+- bolna:
+  - docker build -f [docker/Dockerfile.bolna.dockerfile](docker/Dockerfile.bolna.dockerfile) -t compose-bolna .
+- agents:
+  - docker build -f [docker/Dockerfile.agents.dockerfile](docker/Dockerfile.agents.dockerfile) -t compose-agents .
 
-If a page doesn’t open right away, give it ~1–2 minutes, then refresh.
+Step 5 — Choose a Compose stack and run it:
+Only run one stack at a time. All commands run from the project folder.
 
-8) Stopping and starting later
-- To stop everything running in a stack:
-  - Press Ctrl+C in the terminal where it’s running, then:
+- Ubuntu with GPU (uses GPUs 2 and 3 by default):
+  - docker compose -f [compose/docker-compose-ubuntu.yml](compose/docker-compose-ubuntu.yml) up --build
+
+- Laptop (no GPU):
+  - docker compose -f [compose/docker-compose-laptop.yml](compose/docker-compose-laptop.yml) up --build
+
+- Lightsail (cloud, no GPU):
+  - docker compose -f [compose/docker-compose-lightsail.yml](compose/docker-compose-lightsail.yml) up --build
+
+Step 6 — Open the apps:
+- n8n
+  - Ubuntu (GPU): http://localhost:5678
+  - Laptop: http://127.0.0.1:5679
+  - Lightsail: http://your-server-ip/
+- mem0
+  - Ubuntu (GPU): http://127.0.0.1:7777
+  - Laptop: http://127.0.0.1:7778
+  - Lightsail: http://your-server-ip:7777
+- bolna (Ubuntu GPU only): http://127.0.0.1:8000
+- agents (Ubuntu GPU only): http://127.0.0.1:5000
+
+Tip: First startup can take 1–2 minutes. If a page doesn’t load, wait and refresh.
+
+Step 7 — Check GPUs are set correctly (Ubuntu GPU stack):
+- Validate compose file:
+  - docker compose -f [compose/docker-compose-ubuntu.yml](compose/docker-compose-ubuntu.yml) config
+- Start detached:
+  - docker compose -f [compose/docker-compose-ubuntu.yml](compose/docker-compose-ubuntu.yml) up -d
+- See which GPUs are visible inside containers (should show GPUs 2 and 3 by default):
+  - docker compose -f [compose/docker-compose-ubuntu.yml](compose/docker-compose-ubuntu.yml) exec ollama nvidia-smi
+  - docker compose -f [compose/docker-compose-ubuntu.yml](compose/docker-compose-ubuntu.yml) exec bolna nvidia-smi
+
+To change which GPUs are used:
+- Edit CUDA_VISIBLE_DEVICES in [configs/.env](configs/.env).
+- Restart the Ubuntu stack.
+
+Step 8 — Stop and start later:
+- Stop (in the same stack you started):
+  - Press Ctrl+C if it’s running in the foreground, then:
   - docker compose -f compose/docker-compose-<name>.yml down
-- To start again later:
+- Start again:
   - docker compose -f compose/docker-compose-<name>.yml up --build
 
-9) Common problems and simple fixes
-- “Port already in use” error:
-  - Something else is using that port. Close the other app, or change the left side of the port mapping in the compose file you’re using (for example, change 8000:8000 to 8001:8000).
-- “GPU not found” or “NVIDIA runtime” errors on Ubuntu GPU stack:
-  - Make sure you installed the NVIDIA driver and the NVIDIA Container Toolkit.
-  - If you don’t have a GPU, use the Laptop or Lightsail stack instead.
+Troubleshooting:
+- “Port already in use”:
+  - Change the port on the left side (e.g., 8000:8000 to 8001:8000) in your compose file.
+- “GPU not found”:
+  - On the host, make sure nvidia-smi works first. Install the NVIDIA driver and NVIDIA Container Toolkit.
 - “.env file not found”:
-  - Make sure [configs/.env](configs/.env) exists (copy it from [configs/.env.example.txt](configs/.env.example.txt)).
+  - Make sure you created [configs/.env](configs/.env) from [configs/.env.example.txt](configs/.env.example.txt).
 - “Folder not found” for volumes:
-  - Create the folders n8n-data and ollama-models in the project root (next to the compose and docker folders).
+  - Create folders inside compose/: [compose/n8n-data](compose/n8n-data) and [compose/ollama-models](compose/ollama-models).
 
-Quick reference: what each compose file does
-- [compose/docker-compose-ubuntu.yml](compose/docker-compose-ubuntu.yml)
-  - Builds from [docker/Dockerfile.mem0.dockerfile](docker/Dockerfile.mem0.dockerfile), [docker/Dockerfile.bolna.dockerfile](docker/Dockerfile.bolna.dockerfile), [docker/Dockerfile.agents.dockerfile](docker/Dockerfile.agents.dockerfile)
-  - Pulls pre-built images for n8n and ollama
-- [compose/docker-compose-laptop.yml](compose/docker-compose-laptop.yml)
-  - Builds from [docker/Dockerfile.mem0.dockerfile](docker/Dockerfile.mem0.dockerfile)
-  - Pulls pre-built image for n8n
-- [compose/docker-compose-lightsail.yml](compose/docker-compose-lightsail.yml)
-  - Builds from [docker/Dockerfile.mem0.dockerfile](docker/Dockerfile.mem0.dockerfile)
-  - Pulls pre-built image for n8n
+Cheat sheet (copy/paste):
+- Build base:
+  - docker build -f [docker/Dockerfile.base.py310.cu121](docker/Dockerfile.base.py310.cu121) -t me2-base:py310-cu121 .
+- Build services:
+  - docker build -f [docker/Dockerfile.mem0.dockerfile](docker/Dockerfile.mem0.dockerfile) -t compose-mem0 scripts
+  - docker build -f [docker/Dockerfile.bolna.dockerfile](docker/Dockerfile.bolna.dockerfile) -t compose-bolna .
+  - docker build -f [docker/Dockerfile.agents.dockerfile](docker/Dockerfile.agents.dockerfile) -t compose-agents .
+- Run Ubuntu GPU:
+  - docker compose -f [compose/docker-compose-ubuntu.yml](compose/docker-compose-ubuntu.yml) up --build
+- Check GPUs (Ubuntu GPU):
+  - docker compose -f [compose/docker-compose-ubuntu.yml](compose/docker-compose-ubuntu.yml) exec ollama nvidia-smi
+  - docker compose -f [compose/docker-compose-ubuntu.yml](compose/docker-compose-ubuntu.yml) exec bolna nvidia-smi
 
-Manual build commands (if you ever want to rebuild from scratch)
-- Base image (required for bolna):
-  - docker build -f docker/Dockerfile.base.py310.cu121 -t me2-base:py310-cu121 .
-- App images:
-  - mem0: docker build -f docker/Dockerfile.mem0.dockerfile -t compose-mem0 scripts
-  - bolna: docker build -f docker/Dockerfile.bolna.dockerfile -t compose-bolna .
-  - agents: docker build -f docker/Dockerfile.agents.dockerfile -t compose-agents .
-
-That’s it. Follow these steps in order and you will build and run every image for each compose file from scratch, even on a fresh computer.
+Notes for advanced users:
+- Stable ENV defaults (CUDA_HOME, PATH, LD_LIBRARY_PATH, PYTHONPATH) are defined in [docker/Dockerfile.base.py310.cu121](docker/Dockerfile.base.py310.cu121).
+- Runtime GPU selection is managed by CUDA_VISIBLE_DEVICES via [compose/docker-compose-ubuntu.yml](compose/docker-compose-ubuntu.yml) and [configs/.env](configs/.env).
