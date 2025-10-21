@@ -2,29 +2,86 @@ version: '3.8'
 services:
   n8n-local:
     image: n8nio/n8n
-    ports: - "5678:5678"
-    volumes: - ./n8n-data:/root/.n8n
-    env_file: - ../configs/.env
+    ports:
+      - "5678:5678"
+    volumes:
+      - ./n8n-data:/root/.n8n
+    env_file:
+      - ../configs/.env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://127.0.0.1:5678/healthz', r => process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))\""]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
   ollama:
     image: ollama/ollama
-    ports: - "11434:11434"
-    volumes: - ./ollama-models:/root/.ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ./ollama-models:/root/.ollama
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import socket,sys; s=socket.socket(); s.settimeout(2); s.connect(('127.0.0.1',11434)); s.close()\""]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     deploy:
       resources:
         reservations:
-          devices: - driver: nvidia, count: all, capabilities: [gpu]
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
   mem0:
-    build: ../docker/Dockerfile.mem0
-    ports: - "7777:7777"
-    env_file: - ../configs/.env
+    build:
+      context: ../scripts
+      dockerfile: ../docker/Dockerfile.mem0.dockerfile
+    ports:
+      - "7777:7777"
+    env_file:
+      - ../configs/.env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import socket,sys; s=socket.socket(); s.settimeout(2); s.connect(('127.0.0.1',7777)); s.close()\""]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
   bolna:
-    build: ../docker/Dockerfile.bolna
-    ports: - "8000:8000"
-    env_file: - ../configs/.env
-    depends_on: - ollama
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.bolna.dockerfile
+    ports:
+      - "8000:8000"
+    env_file:
+      - ../configs/.env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import socket,sys; s=socket.socket(); s.settimeout(2); s.connect(('127.0.0.1',8000)); s.close()\""]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
   agents:
-    build: ../docker/Dockerfile.agents
-    ports: - "5000:5000"
-    volumes: - ../scripts:/app/scripts
-    env_file: - ../configs/.env
-    depends_on: - ollama - mem0
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.agents.dockerfile
+    ports:
+      - "5000:5000"
+    volumes:
+      - ../scripts:/app/scripts
+    env_file:
+      - ../configs/.env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import socket,sys; s=socket.socket(); s.settimeout(2); s.connect(('127.0.0.1',5000)); s.close()\""]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    depends_on:
+      - ollama
+      - mem0

@@ -1,10 +1,13 @@
 #### docker/Dockerfile.agents
-FROM python:3.12-slim
+FROM python:3.12.6-slim
 WORKDIR /app
 ### Install core deps
 RUN pip install --no-cache-dir strix-ai factory-ai chatrouter requests
 ### Clone repos if needed (but prefer volume mounts for dev)
 ###For prod, add: RUN git clone https://github.com/usestrix/strix && cd strix && pip install .
 ### Expose if API-ified
+RUN useradd -m -u 10001 appuser && chown -R appuser:appuser /app
+USER appuser
 EXPOSE 5000
-CMD ["python", "-m", "http.server", "5000"]  # Placeholder; override with custom script
+# Placeholder; override with custom script
+CMD ["python", "-m", "http.server", "5000"]

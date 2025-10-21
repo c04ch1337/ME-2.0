@@ -1,0 +1,67 @@
+# VCS
+.git
+.github
+.gitignore
+.gitattributes
+
+# Editors/IDE
+.vscode
+.idea
+
+# Python caches and envs
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+env/
+*.egg-info/
+*.egg
+
+# Node
+node_modules/
+
+# Build/Dist/Tool caches
+build/
+dist/
+out/
+.cache/
+coverage/
+.coverage
+.coverage.*
+htmlcov/
+
+# OS cruft
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# Logs and temp
+*.log
+logs/
+tmp/
+temp/
+*.tmp
+
+# Documentation and diagrams (not needed at runtime)
+docs/
+diagrams/
+
+# Env and secrets (keep examples)
+.env
+*.env
+configs/.env
+secrets/
+*.pem
+*.key
+*.crt
+
+# Keep build-related inputs and contexts available
+!docker/
+!scripts/
+!compose/
+!configs/
+!configs/.env.example*
+!version-control/

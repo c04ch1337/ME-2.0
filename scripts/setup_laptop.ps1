@@ -1,3 +1,6 @@
+Set-StrictMode -Version Latest
+$ErrorActionPreference = "Stop"
+
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) { winget install Git.Git }
 git clone https://github.com/chatrouter/chatrouter; cd chatrouter; npm install; cd ..
 git clone https://github.com/usestrix/strix; cd strix; pip install -r requirements.txt; cd ..

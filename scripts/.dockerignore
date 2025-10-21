@@ -1,0 +1,4 @@
+# Minimize mem0 build context to only what's required
+*
+!run_mem0.py
+!.dockerignore
