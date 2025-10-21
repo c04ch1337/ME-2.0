@@ -1,0 +1,14 @@
+{
+  "name": "Basic Voice Schedule",
+  "nodes": [
+    {"parameters": {"event": "onNewCall"}, "name": "Twilio Trigger", "type": "n8n-nodes-base.twilioTrigger", "typeVersion": 1, "position": [240, 300]},
+    {"parameters": {"authentication": "oAuth2", "resource": "event", "operation": "create", "calendarId": "primary", "start": "={{$json[\"start_time\"]}}", "end": "={{$json[\"end_time\"]}}", "summary": "={{$json[\"appointment\"]}}"}, "name": "Google Calendar", "type": "n8n-nodes-base.googleCalendar", "typeVersion": 1, "position": [640, 300], "credentials": {"googleCalendarOAuth2Api": "Your Google Creds"}},
+    {"parameters": {"jsCode": "items[0].json.start_time = '2025-10-21T14:00:00'; items[0].json.end_time = '2025-10-21T15:00:00'; items[0].json.appointment = 'Dentist'; return items;"}, "name": "Mock Transcribe", "type": "n8n-nodes-base.function", "typeVersion": 1, "position": [440, 300]},
+    {"parameters": {"resource": "call", "operation": "create", "from": "={{$env[\"TWILIO_PHONE_NUMBER\"]}}", "to": "+your_number", "twiml": "<Response><Say>Appointment booked!</Say></Response>"}, "name": "Twilio Confirm", "type": "n8n-nodes-base.twilio", "typeVersion": 1, "position": [840, 300], "credentials": {"twilioApi": "Your Twilio Creds"}}
+  ],
+  "connections": {
+    "Twilio Trigger": {"main": [[{"node": "Mock Transcribe", "type": "main", "index": 0}]]},
+    "Mock Transcribe": {"main": [[{"node": "Google Calendar", "type": "main", "index": 0}]]},
+    "Google Calendar": {"main": [[{"node": "Twilio Confirm", "type": "main", "index": 0}]]}
+  }
+}
