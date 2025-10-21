@@ -64,13 +64,31 @@ fi
 
 echo "[STEP] Ensuring Node.js 20 (npm) is installed..."
 if ! command -v npm >/dev/null 2>&1; then
-  # Add NodeSource repo for the current codename (jammy/noble)
+  # Determine Ubuntu codename (22.04=jammy, 24.04=noble)
   CODENAME="${UBUNTU_CODENAME:-$(lsb_release -sc 2>/dev/null || echo jammy)}"
+
+  echo "[INFO] Cleaning any stale NodeSource entries and keys..."
+  rm -f /etc/apt/sources.list.d/nodesource.list || true
+  sed -i.bak '/deb\.nodesource\.com/d' /etc/apt/sources.list 2>/dev/null || true
+  sed -i.bak '/deb\.nodesource\.com/d' /etc/apt/sources.list.d/*.list 2>/dev/null || true
+  rm -f /usr/share/keyrings/nodesource.gpg || true
+
+  echo "[STEP] Adding NodeSource signed keyring and APT source for ${CODENAME}..."
   install -d -m 0755 /usr/share/keyrings
   curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /usr/share/keyrings/nodesource.gpg
   echo "deb [signed-by=/usr/share/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x ${CODENAME} main" > /etc/apt/sources.list.d/nodesource.list
-  apt update
-  apt install -y nodejs
+
+  echo "[STEP] Installing nodejs from NodeSource (with fallback to Snap if needed)..."
+  apt update || true
+  if ! apt install -y nodejs; then
+    echo "[WARN] NodeSource install failed (possibly due to keyring/network). Falling back to Snap channel 20."
+    if ! command -v snap >/dev/null 2>&1; then
+      apt install -y snapd
+    fi
+    snap install node --channel=20/stable --classic
+    ln -sf /snap/bin/node /usr/local/bin/node || true
+    ln -sf /snap/bin/npm /usr/local/bin/npm || true
+  fi
 fi
 
 echo "[VERIFY] Versions:"
