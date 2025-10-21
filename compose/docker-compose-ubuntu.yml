@@ -1,0 +1,30 @@
+version: '3.8'
+services:
+  n8n-local:
+    image: n8nio/n8n
+    ports: - "5678:5678"
+    volumes: - ./n8n-data:/root/.n8n
+    env_file: - ../configs/.env
+  ollama:
+    image: ollama/ollama
+    ports: - "11434:11434"
+    volumes: - ./ollama-models:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices: - driver: nvidia, count: all, capabilities: [gpu]
+  mem0:
+    build: ../docker/Dockerfile.mem0
+    ports: - "7777:7777"
+    env_file: - ../configs/.env
+  bolna:
+    build: ../docker/Dockerfile.bolna
+    ports: - "8000:8000"
+    env_file: - ../configs/.env
+    depends_on: - ollama
+  agents:
+    build: ../docker/Dockerfile.agents
+    ports: - "5000:5000"
+    volumes: - ../scripts:/app/scripts
+    env_file: - ../configs/.env
+    depends_on: - ollama - mem0

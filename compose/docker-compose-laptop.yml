@@ -1,0 +1,11 @@
+version: '3.8'
+services:
+  n8n-laptop:
+    image: n8nio/n8n
+    ports: - "5679:5678"
+    volumes: - ./n8n-data:/root/.n8n
+    env_file: - ../configs/.env
+  mem0:
+    build: ../docker/Dockerfile.mem0
+    ports: - "7778:7777"
+    env_file: - ../configs/.env
