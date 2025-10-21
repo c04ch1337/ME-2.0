@@ -1,15 +1,30 @@
 #### docker/Dockerfile.agents
 FROM python:3.12.6-slim
 WORKDIR /app
-### Install core deps
-# Strix/Factory are not on PyPI; install only runtime deps here to avoid build failures.
-# For Strix/Factory usage, clone and install from source in a separate stage or via volume mounts.
+
+# Install git for cloning agent frameworks from source
+RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
+
+# Install core dependencies
 RUN pip install --no-cache-dir requests
-### Clone repos if needed (but prefer volume mounts for dev)
-###For prod, add: RUN git clone https://github.com/usestrix/strix && cd strix && pip install .
-### Expose if API-ified
+
+# Install agent frameworks from source (production approach)
+# Clone to /tmp, install, then clean up to minimize image size
+RUN cd /tmp && \
+    git clone https://github.com/usestrix/strix && \
+    cd strix && pip install --no-cache-dir . && \
+    cd /tmp && \
+    git clone https://github.com/Factory-AI/factory && \
+    cd factory && pip install --no-cache-dir . && \
+    cd /tmp && \
+    git clone https://github.com/chatrouter/chatrouter && \
+    cd chatrouter && pip install --no-cache-dir . && \
+    cd / && rm -rf /tmp/strix /tmp/factory /tmp/chatrouter
+
+# Create non-root user
 RUN useradd -m -u 10001 appuser && chown -R appuser:appuser /app
 USER appuser
+
 EXPOSE 5000
 # Placeholder; override with custom script
 CMD ["python", "-m", "http.server", "5000"]

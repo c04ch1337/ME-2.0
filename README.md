@@ -38,6 +38,197 @@ ME-2.0 shines in automating chaotic lives. Examples:
 5. **Self-Evolving System**: Agents code new features on-demand (e.g., add finance bot). Use case: Start simple, grow to full life mgmt—research, shopping, even creative tasks.
 
 ## Installation & Setup
+### Agent Frameworks Installation
+
+ME-2.0 integrates three agent frameworks that are not available on PyPI: [Strix](https://github.com/usestrix/strix) (pentesting), [Factory AI](https://github.com/Factory-AI/factory) (coding), and [ChatRouter](https://github.com/chatrouter/chatrouter) (communication). These frameworks are installed using two complementary approaches depending on your use case:
+
+#### Production Approach (Build-Time Installation)
+
+The production approach installs frameworks directly into the Docker image during the build process. This is implemented in [`docker/Dockerfile.agents.dockerfile`](docker/Dockerfile.agents.dockerfile:1) and provides:
+
+**Advantages:**
+- **Self-contained images**: All dependencies bundled, ready to deploy anywhere
+- **Reproducible builds**: Same image works identically across all nodes
+- **Faster container startup**: No volume mount overhead
+- **Cleaner deployment**: No host dependencies required
+
+**Implementation Details:**
+```dockerfile
+# Install git for cloning agent frameworks
+RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
+
+# Clone repos to /tmp, install, then clean up
+RUN cd /tmp && \
+    git clone https://github.com/usestrix/strix && \
+    cd strix && pip install --no-cache-dir . && \
+    cd /tmp && \
+    git clone https://github.com/Factory-AI/factory && \
+    cd factory && pip install --no-cache-dir . && \
+    cd /tmp && \
+    git clone https://github.com/chatrouter/chatrouter && \
+    cd chatrouter && pip install --no-cache-dir . && \
+    cd / && rm -rf /tmp/strix /tmp/factory /tmp/chatrouter
+```
+
+**When to Use:**
+- Deploying to cloud (AWS Lightsail) where you want immutable infrastructure
+- Production workloads requiring stability and reproducibility
+- When you need to share images across teams or environments
+- For CI/CD pipelines where consistency is critical
+
+**Version Pinning:**
+To pin specific commits for reproducibility, modify the clone commands:
+```dockerfile
+git clone https://github.com/usestrix/strix && cd strix && git checkout <commit-hash> && pip install .
+```
+
+#### Development Approach (Volume Mount Installation)
+
+The development approach uses volume mounts to make locally-cloned repositories available to containers. This is configured in [`compose/docker-compose-ubuntu.yml`](compose/docker-compose-ubuntu.yml:28) via:
+
+```yaml
+volumes:
+  - ../scripts:/app/scripts  # Host-cloned repos mounted here
+```
+
+**Advantages:**
+- **Live code editing**: Changes to framework code immediately available in containers
+- **Rapid iteration**: No image rebuild required for testing modifications
+- **Easy debugging**: Can add print statements, breakpoints directly in framework code
+- **Framework development**: Ideal when contributing back to Strix/Factory/ChatRouter
+
+**Implementation Steps:**
+1. Clone frameworks to your host machine outside the ME-2.0 repo:
+   ```bash
+   cd ~/projects  # Or your preferred location
+   git clone https://github.com/usestrix/strix
+   git clone https://github.com/Factory-AI/factory
+   git clone https://github.com/chatrouter/chatrouter
+   ```
+
+2. Install in development mode (editable installs):
+   ```bash
+   cd ~/projects/strix && pip install -e .
+   cd ~/projects/factory && pip install -e .
+   cd ~/projects/chatrouter && pip install -e .
+   ```
+
+3. Update compose file to mount these directories:
+   ```yaml
+   volumes:
+     - ~/projects/strix:/app/strix
+     - ~/projects/factory:/app/factory
+     - ~/projects/chatrouter:/app/chatrouter
+   ```
+
+4. Restart containers to pick up changes:
+   ```bash
+   docker compose -f compose/docker-compose-ubuntu.yml restart agents
+   ```
+
+**When to Use:**
+- Active development on agent frameworks
+- Testing experimental features before committing
+- Debugging framework-specific issues
+- Contributing patches back to upstream repos
+
+#### Hybrid Strategy (Recommended)
+
+For maximum flexibility, use **both approaches**:
+
+1. **Base Image (Production)**: Build [`Dockerfile.agents.dockerfile`](docker/Dockerfile.agents.dockerfile:1) with frameworks pre-installed for stability
+2. **Development Override**: Add volume mounts in local compose files to override with editable versions when needed
+3. **Switch Seamlessly**: Remove volume mounts to revert to production build without image changes
+
+Example local override in `docker-compose.override.yml`:
+```yaml
+services:
+  agents:
+    volumes:
+      - ~/projects/strix:/app/strix  # Override with local dev version
+      # Comment out to use production build version
+```
+
+#### Troubleshooting
+
+**Build Failures:**
+
+*Problem: Git clone fails during Docker build*
+```
+fatal: unable to access 'https://github.com/usestrix/strix/': Could not resolve host
+```
+**Solution:** Check network connectivity. If behind corporate proxy, add proxy settings to Dockerfile:
+```dockerfile
+ENV http_proxy=http://proxy.corp.com:8080
+ENV https_proxy=http://proxy.corp.com:8080
+```
+
+*Problem: Pip install fails with missing dependencies*
+```
+ERROR: Could not find a version that satisfies the requirement <package>
+```
+**Solution:** Some frameworks have unlisted dependencies. Install manually before framework:
+```dockerfile
+RUN pip install --no-cache-dir <missing-package>
+```
+
+*Problem: Image size bloated after installs*
+```
+REPOSITORY          TAG       SIZE
+me-2.0-agents      latest    2.5GB
+```
+**Solution:** Ensure cleanup runs in same RUN layer (already implemented):
+```dockerfile
+RUN cd /tmp && git clone ... && pip install . && cd / && rm -rf /tmp/*
+```
+
+**Runtime Issues:**
+
+*Problem: ImportError for framework modules*
+```python
+ModuleNotFoundError: No module named 'strix'
+```
+**Solution:** Verify installation in container:
+```bash
+docker exec -it agents-container pip list | grep strix
+```
+If missing, rebuild image: `docker compose build --no-cache agents`
+
+*Problem: Volume mount shows old code despite local changes*
+**Solution:** Restart container to refresh mounts:
+```bash
+docker compose restart agents
+```
+Or force recreate: `docker compose up -d --force-recreate agents`
+
+*Problem: Permission denied accessing mounted framework directories*
+```
+PermissionError: [Errno 13] Permission denied: '/app/strix/...'
+```
+**Solution:** Fix ownership on host:
+```bash
+sudo chown -R $(id -u):$(id -g) ~/projects/strix ~/projects/factory ~/projects/chatrouter
+```
+
+**Version Conflicts:**
+
+*Problem: Frameworks require conflicting dependency versions*
+```
+ERROR: pip's dependency resolver does not currently take into account all the packages that are installed
+```
+**Solution:** Create separate containers per framework or use virtual environments within container. Alternatively, pin compatible versions in a requirements.txt added to Dockerfile.
+
+**Debugging Tips:**
+- **Check installed versions**: `docker exec agents-container pip show strix factory chatrouter`
+- **View build logs**: `docker compose build agents 2>&1 | tee build.log`
+- **Test framework imports**: `docker exec agents-container python -c "import strix; print(strix.__version__)"`
+- **Compare prod vs dev**: Use `docker diff` to see filesystem changes between image and container with mounts
+
+**Getting Help:**
+- Framework-specific issues: Check GitHub issues for [Strix](https://github.com/usestrix/strix/issues), [Factory AI](https://github.com/Factory-AI/factory/issues), [ChatRouter](https://github.com/chatrouter/chatrouter/issues)
+- ME-2.0 integration problems: Open issue on this repo with build logs and environment details
+- Docker build failures: Review [Docker documentation](https://docs.docker.com/engine/reference/builder/) for Dockerfile best practices
+
 Clone the repo and bootstrap per node. Requirements: Git, Docker (with NVIDIA support on Ubuntu), Python 3.12+.
 ```
 me-2.0/
