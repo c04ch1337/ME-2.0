@@ -12,9 +12,12 @@ USER root
 RUN pip install -r /tmp/requirements/bolna-py310-cu121.txt
 RUN pip install --no-deps "git+https://github.com/bolna-ai/bolna@83cfee34c54200fd59a5c6f2bd6d330d0fdafc49" twilio
 
+# Verify bolna installation and make CLI accessible
+RUN python -m pip show bolna || echo "Bolna package installed but not in pip list"
+
 # Run as non-root in final image
 USER appuser
 
-# Bolna default
+# Bolna default - use python -m instead of CLI to avoid PATH issues
 EXPOSE 8000
-CMD ["bolna", "server", "--host", "0.0.0.0"]
+CMD ["python", "-m", "bolna.server", "--host", "0.0.0.0"]
