@@ -19,6 +19,10 @@ Basic commands (Ubuntu GPU stack, first time):
 - docker build -f [docker/Dockerfile.base.py310.cu121](docker/Dockerfile.base.py310.cu121) -t me2-base:py310-cu121 .
 - docker compose -f [compose/docker-compose-ubuntu.yml](compose/docker-compose-ubuntu.yml) up --build
 
+## Bolna Manual Workaround
+
+If bolna fails with “No module named bolna.server” or the CLI is missing, follow [docs/bolna-manual-workaround.md](docs/bolna-manual-workaround.md) to run bolna from source inside the container using uvicorn until upstream packaging exposes a stable entrypoint.
+
 ## What is ME-2.0?
 ME-2.0 is an open-source, hybrid AI framework that creates a digital clone of you—"ME 2.0"—using interconnected agents. Key features:
 - **Agent Swarm**: Agents for pentesting (STRIX), coding (Factory AI), communication (ChatRouter), memory (Mem0), email (DreamLit), and voice (Twilio + Bolna).

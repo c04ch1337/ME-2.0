@@ -97,6 +97,8 @@ Step 8 — Stop and start later:
   - docker compose -f compose/docker-compose-<name>.yml up --build
 
 Troubleshooting:
+- “Bolna module not found” (No module named bolna.server):
+  - Follow the manual workaround to run from source inside the container: [docs/bolna-manual-workaround.md](docs/bolna-manual-workaround.md)
 - “Port already in use”:
   - Change the port on the left side (e.g., 8000:8000 to 8001:8000) in your compose file.
 - “GPU not found”:
