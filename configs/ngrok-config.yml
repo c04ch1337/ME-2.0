@@ -1,0 +1,66 @@
+# Ngrok Configuration for Bolna Telephony Services
+# ================================================
+# This configuration creates tunnels to expose local Bolna services to the internet,
+# allowing telephony providers (Twilio/Plivo) to send webhook callbacks.
+#
+# Setup Instructions:
+# 1. Sign up for ngrok at https://ngrok.com if you haven't already
+# 2. Get your auth token from https://dashboard.ngrok.com/get-started/your-authtoken
+# 3. Replace YOUR_NGROK_AUTH_TOKEN_HERE below with your actual token
+#    OR set the NGROK_AUTHTOKEN environment variable
+# 4. Run: ngrok start --all --config configs/ngrok-config.yml
+#
+# Monitoring:
+# - View tunnel status and URLs at http://localhost:4040 (ngrok web interface)
+# - All active tunnel URLs will be displayed in the ngrok dashboard
+#
+# Important:
+# - Copy the generated public URLs from ngrok dashboard
+# - Configure these URLs in your Twilio/Plivo webhook settings
+# - URLs change on each ngrok restart unless you have a paid plan with reserved domains
+
+version: "2"
+authtoken: YOUR_NGROK_AUTH_TOKEN_HERE
+
+# Optional: Set region for better latency (us, eu, ap, au, sa, jp, in)
+region: us
+
+tunnels:
+  # Main Bolna Application Tunnel
+  # Exposes the core Bolna telephony application
+  bolna-tunnel:
+    addr: bolna-app:5001
+    proto: http
+    # Purpose: Main Bolna API endpoint for telephony operations
+    # Use this URL as the base URL for Bolna service configuration
+    # Example webhook URL: https://<random-id>.ngrok.io/api/endpoint
+
+  # Twilio Integration Tunnel
+  # Exposes the Twilio-specific webhook handler
+  twilio-tunnel:
+    addr: twilio-app:8001
+    proto: http
+    # Purpose: Receives webhook callbacks from Twilio
+    # Configure this URL in your Twilio console:
+    # - Voice webhook URL: https://<random-id>.ngrok.io/webhook
+    # - Status callback URL: https://<random-id>.ngrok.io/status
+    # Replace <random-id> with the actual ngrok-generated subdomain
+
+  # Plivo Integration Tunnel
+  # Exposes the Plivo-specific webhook handler
+  plivo-tunnel:
+    addr: plivo-app:8002
+    proto: http
+    # Purpose: Receives webhook callbacks from Plivo
+    # Configure this URL in your Plivo console:
+    # - Answer URL: https://<random-id>.ngrok.io/webhook
+    # - Hangup URL: https://<random-id>.ngrok.io/hangup
+    # Replace <random-id> with the actual ngrok-generated subdomain
+
+# Additional Notes:
+# ----------------
+# 1. Free ngrok accounts get random URLs that change on restart
+# 2. Paid plans offer reserved domains and additional features
+# 3. Each tunnel will get a unique public URL shown in the ngrok dashboard
+# 4. Keep the ngrok process running while testing telephony integrations
+# 5. For production, consider using a reverse proxy or load balancer instead

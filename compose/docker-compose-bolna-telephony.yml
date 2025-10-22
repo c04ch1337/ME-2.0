@@ -1,0 +1,177 @@
+# ============================================================================
+# Bolna Telephony Platform - Docker Compose Configuration
+# ============================================================================
+#
+# This docker-compose file provides a complete stack for running the Bolna
+# AI voice agent platform with telephony integrations (Twilio, Plivo).
+#
+# USAGE:
+#   docker-compose -f compose/docker-compose-bolna-telephony.yml up -d
+#
+# PREREQUISITES:
+#   1. Copy configs/.env.example.txt to configs/.env and fill in all values
+#   2. Add valid ngrok auth token in configs/ngrok-config.yml
+#   3. For full Twilio/Plivo support, obtain Bolna repository Dockerfiles:
+#      - dockerfiles/twilio_server.Dockerfile
+#      - dockerfiles/plivo_server.Dockerfile
+#
+# DOCUMENTATION:
+#   - Bolna: https://github.com/bolna-ai/bolna
+#   - ME-2.0 Architecture: docs/architecture.md
+#
+# ============================================================================
+
+version: '3.8'
+
+services:
+  # ==========================================================================
+  # Bolna Core Application
+  # ==========================================================================
+  # Main Bolna voice agent server handling AI conversations
+  bolna-app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.bolna.dockerfile
+    image: bolna-app:latest
+    container_name: bolna-app
+    ports:
+      - "5001:5001"
+    env_file:
+      - ../configs/.env
+    volumes:
+      # Agent data persistence
+      - ../agent_data:/app/agent_data
+      # AWS credentials (optional - only if using AWS services)
+      - ${HOME}/.aws/credentials:/root/.aws/credentials:ro
+      - ${HOME}/.aws/config:/root/.aws/config:ro
+    depends_on:
+      - redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - bolna-network
+
+  # ==========================================================================
+  # Redis Cache & Message Broker
+  # ==========================================================================
+  # Used for session management, caching, and inter-service communication
+  redis:
+    image: redis:alpine
+    container_name: bolna-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    networks:
+      - bolna-network
+
+  # ==========================================================================
+  # Ngrok Tunneling Service
+  # ==========================================================================
+  # Exposes local services to the internet for webhook callbacks
+  # IMPORTANT: Requires valid ngrok auth token in configs/ngrok-config.yml
+  ngrok:
+    image: ngrok/ngrok:latest
+    container_name: bolna-ngrok
+    restart: unless-stopped
+    command:
+      - "start"
+      - "--all"
+      - "--config"
+      - "/etc/ngrok.yml"
+    volumes:
+      - ../configs/ngrok-config.yml:/etc/ngrok.yml:ro
+    ports:
+      - "4040:4040"  # Ngrok web interface
+    depends_on:
+      - bolna-app
+      - twilio-app
+      - plivo-app
+    networks:
+      - bolna-network
+
+  # ==========================================================================
+  # Twilio Integration Server
+  # ==========================================================================
+  # Handles Twilio-specific telephony integrations and webhooks
+  # NOTE: This is a placeholder configuration using the base Bolna dockerfile.
+  # For full Twilio functionality, you need the actual twilio_server.Dockerfile
+  # from the Bolna repository at dockerfiles/twilio_server.Dockerfile
+  twilio-app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.bolna.dockerfile
+    image: twilio-app:latest
+    container_name: bolna-twilio
+    ports:
+      - "8001:8001"
+    env_file:
+      - ../configs/.env
+    depends_on:
+      - redis
+      - bolna-app
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - bolna-network
+
+  # ==========================================================================
+  # Plivo Integration Server
+  # ==========================================================================
+  # Handles Plivo-specific telephony integrations and webhooks
+  # NOTE: This is a placeholder configuration using the base Bolna dockerfile.
+  # For full Plivo functionality, you need the actual plivo_server.Dockerfile
+  # from the Bolna repository at dockerfiles/plivo_server.Dockerfile
+  plivo-app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.bolna.dockerfile
+    image: plivo-app:latest
+    container_name: bolna-plivo
+    ports:
+      - "8002:8002"
+    env_file:
+      - ../configs/.env
+    depends_on:
+      - redis
+      - bolna-app
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - bolna-network
+
+# ============================================================================
+# Named Volumes
+# ============================================================================
+volumes:
+  redis-data:
+    driver: local
+
+# ============================================================================
+# Networks
+# ============================================================================
+networks:
+  bolna-network:
+    driver: bridge
