@@ -16,25 +16,39 @@ services:
       retries: 5
       start_period: 20s
   ollama:
-    image: ollama/ollama
+    image: ollama/ollama:latest
     ports:
       - "11434:11434"
     volumes:
       - ./ollama-models:/root/.ollama
     restart: unless-stopped
+    gpus:
+      - device: 2
+      - device: 3
+    environment:
+      - OLLAMA_LLM_LIBRARY=cuda
+      - OLLAMA_FLASH_ATTENTION=true
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    shm_size: "8g"
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import socket,sys; s=socket.socket(); s.settimeout(2); s.connect(('127.0.0.1',11434)); s.close()\""]
+      test: ["CMD", "bash", "-lc", "curl -sf http://127.0.0.1:11434/api/tags >/dev/null"]
       interval: 30s
       timeout: 5s
       retries: 5
       start_period: 20s
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              device_ids: ['2', '3']
-              capabilities: [gpu]
+#    healthcheck:
+#      test: ["CMD-SHELL", "python -c \"import socket,sys; s=socket.socket(); s.settimeout(2); s.connect(('127.0.0.1',11434)); s.close()\""]
+#      interval: 30s
+#      timeout: 5s
+#      retries: 5
+#      start_period: 20s
+#    deploy:
+#      resources:
+#        reservations:
+#          devices:
+#            - driver: nvidia
+#              count: all
+#              capabilities: [gpu]
     env_file:
       - ../configs/.env
   mem0:
